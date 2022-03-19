@@ -10,5 +10,5 @@ Given a `my.patch` you can run
 
 You can choose in which *bucket* to put each hunk.
 
-In any moment, you can quite and `my.patch` will contain unassigned hunks while all the other hunks will be moved to `$BUCKET_NAME.patch`.
+In any moment, you can quit and `my.patch` will contain unassigned hunks while all the other hunks will be moved to `$BUCKET_NAME.patch`.
 
