@@ -75,14 +75,22 @@ def diff_header(path):
 
 
 def save_patches():
+    file_names = []
     for bucket_name, hunks in buckets.items():
-        with open(f"{bucket_name}.patch", "a") as bucket_file:
+        file_name = f"{bucket_name}.patch"
+        file_names.append(file_name)
+        with open(file_name, "a") as bucket_file:
             old_path = ""
             for (path, hunk) in sorted(hunks, key=lambda a: a[0]):
                 if path != old_path:
                     old_path = path
                     bucket_file.write(diff_header(path))
                 bucket_file.write(str(hunk))
+
+    global args
+    if args.patches_list and file_names:
+        with open(args.patches_list, "w") as patches_list:
+            patches_list.write("\n".join(file_names) + "\n")
 
     with open(args.patch, "w") as patch_file:
         for patched_file in patch:
@@ -208,6 +216,7 @@ def main():
     parser = argparse.ArgumentParser(description="Organize patch in buckets.")
     parser.add_argument("patch", metavar="PATCH", help="input patch")
     parser.add_argument("--no-less", action="store_true", help="Don't use less.")
+    parser.add_argument("--patches-list", help="Store the list of patches in the given file.")
     global args
     args = parser.parse_args()
 

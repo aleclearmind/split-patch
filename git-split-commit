@@ -1,0 +1,83 @@
+#!/bin/bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+set -e
+
+RESET=0
+
+function log() {
+    echo "$1" > /dev/stderr
+}
+
+function usage() {
+    log "Usage: $0 [--reset]"
+    log ""
+    log "  --reset: instead of reverting HEAD, discard it."
+    log ""
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help)
+            usage
+            shift
+            exit 0
+            ;;
+        --reset)
+            RESET=1
+            shift
+            ;;
+        *)
+            echo "Unknown option $1"
+            log ""
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if ! git diff --exit-code >& /dev/null; then
+    log "git diff did not give an empty output, exiting."
+    exit 1
+fi
+
+COMMIT="$(git rev-parse HEAD)"
+
+# Create patch for HEAD
+BASE_PATCH="$(git format-patch HEAD^)"
+
+# Split the patch
+PATCHES_LIST_FILE="patches-list.txt"
+"$SCRIPT_DIR/split-patch.py" --patches-list "$PATCHES_LIST_FILE" "$BASE_PATCH"
+
+# Get the list of patches
+if test -e "$PATCHES_LIST_FILE"; then
+    if test "$RESET" -eq 1; then
+        # Discard the original commit
+        git reset --hard HEAD^
+    else
+        # Revert original commit
+        git revert --no-edit "$COMMIT"
+    fi
+
+    # If something is left, recreate the base commit
+    if test -s "$BASE_PATCH"; then
+        git apply --index "$BASE_PATCH"
+        git commit -C "$COMMIT"
+    fi
+
+    PATCHES="$(cat $PATCHES_LIST_FILE)"
+
+    # Create one commit per-patch
+    for PATCH in $PATCHES; do
+        git apply --index "$PATCH"
+        git commit -m"$PATCH"
+    done
+
+    # Get rid of all the generated patches
+    rm $PATCHES "$PATCHES_LIST_FILE"
+fi
+
+# Drop the original patch
+rm "$BASE_PATCH"
